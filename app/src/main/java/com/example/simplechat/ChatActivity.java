@@ -1,6 +1,8 @@
 package com.example.simplechat;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import android.os.Bundle;
 import android.util.Log;
@@ -16,11 +18,19 @@ import com.parse.ParseObject;
 import com.parse.ParseUser;
 import com.parse.SaveCallback;
 
+import java.util.ArrayList;
+
 public class ChatActivity extends AppCompatActivity {
 
     static final String TAG = ChatActivity.class.getSimpleName();
     static final String USER_ID_KEY = "userId";
     static final String BODY_KEY = "body";
+
+    RecyclerView rvChat;
+    ArrayList<Message> mMessages;
+    ChatAdapter mAdapter;
+    // Keep track of initial load to scroll to the bottom of the ListView
+    boolean mFirstLoad;
 
     EditText etMessage;
     Button btSend;
@@ -56,32 +66,49 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
 
-    // Setup button event handler which posts the entered message to Parse
+    // Setup message field and posting
     void setupMessagePosting() {
         // Find the text field and button
         etMessage = (EditText) findViewById(R.id.etMessage);
         btSend = (Button) findViewById(R.id.btSend);
+        rvChat = (RecyclerView) findViewById(R.id.rvChat);
+        mMessages = new ArrayList<>();
+        mFirstLoad = true;
+        final String userId = ParseUser.getCurrentUser().getObjectId();
+        mAdapter = new ChatAdapter(ChatActivity.this, userId, mMessages);
+        rvChat.setAdapter(mAdapter);
+
+        // associate the LayoutManager with the RecylcerView
+        final LinearLayoutManager linearLayoutManager = new LinearLayoutManager(ChatActivity.this);
+        rvChat.setLayoutManager(linearLayoutManager);
+
         // When send button is clicked, create message object on Parse
         btSend.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 String data = etMessage.getText().toString();
-                ParseObject message = ParseObject.create("Message");
-                message.put(USER_ID_KEY, ParseUser.getCurrentUser().getObjectId());
-                message.put(BODY_KEY, data);
+                //ParseObject message = ParseObject.create("Message");
+                //message.put(Message.USER_ID_KEY, userId);
+                //message.put(Message.BODY_KEY, data);
+                // Using new `Message` Parse-backed model now
+                Message message = new Message();
+                message.setBody(data);
+                message.setUserId(ParseUser.getCurrentUser().getObjectId());
                 message.saveInBackground(new SaveCallback() {
                     @Override
                     public void done(ParseException e) {
-                        if(e == null) {
-                            Toast.makeText(ChatActivity.this, "Successfully created message on Parse",
-                                    Toast.LENGTH_SHORT).show();
-                        } else {
-                            Log.e(TAG, "Failed to save message", e);
-                        }
+                        Toast.makeText(ChatActivity.this, "Successfully created message on Parse",
+                                Toast.LENGTH_SHORT).show();
+                        refreshMessages();
                     }
                 });
                 etMessage.setText(null);
             }
         });
+    }
+
+    // Query messages from Parse so we can load them into the chat adapter
+    void refreshMessages() {
+        // TODO
     }
 }
